@@ -1,4 +1,7 @@
 #[ macro_use ]
+extern crate lazy_static;
+
+#[ macro_use ]
 extern crate serde_derive;
 
 extern crate hyper;
@@ -23,8 +26,6 @@ use std::sync::Arc;
 
 use daemon::*;
 use settings::*;
-use server::*;
-use upstream::*;
 
 fn main () {
 

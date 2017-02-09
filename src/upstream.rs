@@ -27,14 +27,8 @@ pub struct Upstream {
 }
 
 struct State {
-	data: HashMap <String, NodeData>,
+	data: Arc <Mutex <HashMap <String, Arc <NodeData>>>>,
 	etcd_index: u64,
-}
-
-struct NodeData {
-	value: String,
-	created_index: u64,
-	modified_index: u64,
 }
 
 impl Upstream {
@@ -59,7 +53,9 @@ impl Upstream {
 		let state =
 			Arc::new (Mutex::new (
 				State {
-					data: resource_data,
+					data: Arc::new (Mutex::new (
+						resource_data,
+					)),
 					etcd_index: etcd_index,
 				}
 			));
@@ -151,7 +147,7 @@ impl Upstream {
 	fn resource_data_load_initial (
 		settings: Arc <Settings>,
 		hyper_client: Arc <HyperClient>,
-	) -> Result <(HashMap <String, NodeData>, u64), String> {
+	) -> Result <(HashMap <String, Arc <NodeData>>, u64), String> {
 
 		println! (
 			"Load initial data ...");
@@ -203,10 +199,11 @@ impl Upstream {
 					error.description ())
 			) ?;
 
-		let mut resource_data: HashMap <String, NodeData> =
+		let mut resource_data: HashMap <String, Arc <NodeData>> =
 			HashMap::new ();
 
 		Self::store_node_recursive (
+			settings.clone (),
 			& mut resource_data,
 			& response_data.node);
 
@@ -225,7 +222,8 @@ impl Upstream {
 	}
 
 	fn store_node_recursive (
-		data: & mut HashMap <String, NodeData>,
+		settings: Arc <Settings>,
+		data: & mut HashMap <String, Arc <NodeData>>,
 		node: & EtcdNode,
 	) {
 
@@ -234,6 +232,7 @@ impl Upstream {
 			for child_node in node.nodes.iter () {
 
 				Self::store_node_recursive (
+					settings.clone (),
 					data,
 					child_node,
 				);
@@ -244,23 +243,33 @@ impl Upstream {
 
 			match node.value {
 
-				Some (ref value) =>
+				Some (ref value) => {
+
+					let key =
+						& node.key [settings.upstream.key_prefix.len () .. ];
+
 					data.insert (
-						node.key.to_owned (),
-						NodeData {
+						key.to_owned (),
+						Arc::new (NodeData {
+							key: key.to_owned (),
 							value: value.to_owned (),
 							created_index: node.created_index,
 							modified_index: node.modified_index,
-						},
-					),
+						}),
+					);
 
-				None =>
+				},
+
+				None => {
+
 					data.remove (
-						& node.key),
+						& node.key);
 
-			};
+				},
 
-		}
+			}
+
+		};
 
 	}
 
@@ -351,19 +360,53 @@ impl Upstream {
 					).unwrap () [0]
 				).unwrap ().parse ().unwrap ();
 
+			let mut data =
+				state.data.lock ().unwrap ();
+
 			Self::store_node_recursive (
-				& mut state.data,
+				settings.clone (),
+				& mut data,
 				& response_data.node);
 
 			println! (
 				"Update: Got {} nodes, etcd index is {}",
-				state.data.len (),
+				data.len (),
 				state.etcd_index);
 
 		}
 
 		Ok (())
 
+	}
+
+	pub fn data (
+		& self,
+	) -> Arc <Mutex <HashMap <String, Arc <NodeData>>>> {
+
+		let state =
+			self.state.lock ().unwrap ();
+
+		state.data.clone ()
+
+	}
+
+}
+
+pub struct NodeData {
+	key: String,
+	value: String,
+	created_index: u64,
+	modified_index: u64,
+}
+
+impl NodeData {
+
+	pub fn key (& self) -> & str {
+		& self.key
+	}
+
+	pub fn value (& self) -> & str {
+		& self.value
 	}
 
 }

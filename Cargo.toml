@@ -9,6 +9,7 @@
 [dependencies]
 
 	hyper = "*"
+	lazy_static = "*"
 	libc = "*"
 	openssl = "*"
 	regex = "*"

@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::io::Write;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -8,6 +9,12 @@ use hyper::server::Listening as HyperListening;
 use hyper::server::Request as HyperRequest;
 use hyper::server::Response as HyperResponse;
 use hyper::server::Server as HyperServer;
+use hyper::uri::RequestUri as HyperRequestUri;
+
+use regex::Captures as RegexCaptures;
+use regex::Regex;
+
+use serde_json;
 
 use settings::*;
 use upstream::*;
@@ -89,38 +96,153 @@ impl HyperHandler for Handler {
 		mut response: HyperResponse,
 	) {
 
-		{
+		let uri =
+			request.uri.clone ();
 
-			let headers =
-				response.headers_mut ();
+		if let HyperRequestUri::AbsolutePath (path) =
+			uri {
 
-			headers.set (
-				header::ContentType::plaintext ());
+			for & (ref route_regex, ref route_handler)
+			in ROUTES.iter () {
+
+				if let Some (route_captures) =
+					route_regex.captures (
+						& path) {
+
+					return route_handler (
+						self.state.clone (),
+						self.upstream.clone (),
+						route_captures,
+						request,
+						response,
+					);
+
+				}
+
+			}
+
+			response.send (
+				b"NOT FOUND\n",
+			).unwrap ();
+
+		} else {
+
+			response.send (
+				b"ERROR\n",
+			).unwrap ();
 
 		}
 
-		let counter = {
+	}
 
-			let mut state =
-				self.state.lock ().unwrap ();
+}
 
-			let counter =
-				state.counter;
+type RouteHandlerFn =
+	Fn (
+		Arc <Mutex <State>>,
+		Arc <Upstream>,
+		RegexCaptures,
+		HyperRequest,
+		HyperResponse,
+	) + Sync;
 
-			state.counter += 1;
+type RouteHandler =
+	& 'static RouteHandlerFn;
 
-			counter
+lazy_static! {
 
-		};
+	static ref ROUTES: Vec <(Regex, RouteHandler)> = vec! [
+		(
+			Regex::new (
+				"^/raw/resources$"
+			).unwrap (),
+			ROUTE_RESOURCES,
+		),
+	];
 
-		response.send (
-			format! (
-				"{}\n",
-				counter,
-			).as_bytes (),
+}
+
+const ROUTE_RESOURCES: & 'static RouteHandlerFn =
+	& route_resources;
+
+fn route_resources (
+	state: Arc <Mutex <State>>,
+	upstream: Arc <Upstream>,
+	captures: RegexCaptures,
+	request: HyperRequest,
+	mut response: HyperResponse,
+) {
+
+	let resources_temp: Vec <Arc <NodeData>> = {
+
+		let data =
+			upstream.data ();
+
+		let data =
+			data.lock ().unwrap ();
+
+		data.iter ().filter (
+			|& (ref key, ref _node)|
+			key.starts_with ("/resource/")
+			&& key.ends_with ("/data")
+		).map (
+			|(ref _key, ref node)|
+			(* node).clone ()
+		).collect ()
+
+	};
+
+	{
+
+		let mut headers =
+			response.headers_mut ();
+
+		headers.set (
+			header::ContentType::json ());
+
+	}
+
+	let mut response =
+		response.start ().unwrap ();
+
+	let mut first = true;
+
+	write! (
+		response,
+		"{{\n  \"resources\": [",
+	).unwrap ();
+
+	for resource in resources_temp {
+
+		if first {
+
+			write! (
+				response,
+				"\n    ",
+			).unwrap ();
+
+			first = false;
+
+		} else {
+
+			write! (
+				response,
+				",\n    ",
+			).unwrap ();
+
+		}
+
+		serde_json::to_writer (
+			& mut response,
+			& resource.value (),
 		).unwrap ();
 
 	}
+
+	write! (
+		response,
+		"\n  ]\n}}\n",
+	).unwrap ();
 
 }
 
