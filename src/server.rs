@@ -9,6 +9,7 @@ use hyper::server::Listening as HyperListening;
 use hyper::server::Request as HyperRequest;
 use hyper::server::Response as HyperResponse;
 use hyper::server::Server as HyperServer;
+use hyper::status::StatusCode as HyperStatusCode;
 use hyper::uri::RequestUri as HyperRequestUri;
 
 use regex::Captures as RegexCaptures;
@@ -121,19 +122,65 @@ impl HyperHandler for Handler {
 
 			}
 
-			response.send (
-				b"NOT FOUND\n",
-			).unwrap ();
+			send_not_found (
+				response,
+			);
 
 		} else {
 
-			response.send (
-				b"ERROR\n",
-			).unwrap ();
+			send_error (
+				response,
+			);
 
 		}
 
 	}
+
+}
+
+fn send_not_found (
+	mut response: HyperResponse,
+) {
+
+	* response.status_mut () =
+		HyperStatusCode::NotFound;
+
+	{
+
+		let headers =
+			response.headers_mut ();
+
+		headers.set (
+			header::ContentType::plaintext ());
+
+	}
+
+	response.send (
+		b"NOT FOUND\n",
+	).unwrap ();
+
+}
+
+fn send_error (
+	mut response: HyperResponse,
+) {
+
+	* response.status_mut () =
+		HyperStatusCode::InternalServerError;
+
+	{
+
+		let headers =
+			response.headers_mut ();
+
+		headers.set (
+			header::ContentType::plaintext ());
+
+	}
+
+	response.send (
+		b"ERROR\n",
+	).unwrap ();
 
 }
 
