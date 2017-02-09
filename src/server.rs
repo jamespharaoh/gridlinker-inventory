@@ -156,16 +156,16 @@ lazy_static! {
 			Regex::new (
 				"^/raw/resources$"
 			).unwrap (),
-			ROUTE_RESOURCES,
+			ROUTE_RAW_RESOURCES,
 		),
 	];
 
 }
 
-const ROUTE_RESOURCES: & 'static RouteHandlerFn =
-	& route_resources;
+const ROUTE_RAW_RESOURCES: & 'static RouteHandlerFn =
+	& route_raw_resources;
 
-fn route_resources (
+fn route_raw_resources (
 	state: Arc <Mutex <State>>,
 	upstream: Arc <Upstream>,
 	captures: RegexCaptures,
