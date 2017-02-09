@@ -9,7 +9,9 @@
 [dependencies]
 
 	hyper = "*"
+	libc = "*"
 	openssl = "*"
+	regex = "*"
 	serde = "*"
 	serde_derive = "*"
 	serde_json = "*"

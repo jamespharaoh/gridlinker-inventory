@@ -10,6 +10,7 @@ use hyper::server::Response as HyperResponse;
 use hyper::server::Server as HyperServer;
 
 use settings::*;
+use upstream::*;
 
 pub struct Server {
 	hyper_listening: HyperListening,
@@ -22,12 +23,14 @@ struct State {
 
 struct Handler {
 	state: Arc <Mutex <State>>,
+	upstream: Arc <Upstream>,
 }
 
 impl Server {
 
 	pub fn start (
 		settings: Arc <Settings>,
+		upstream: Arc <Upstream>,
 	) -> Result <Server, String> {
 
 		let state =
@@ -40,6 +43,7 @@ impl Server {
 		let handler =
 			Handler {
 				state: state.clone (),
+				upstream: upstream,
 			};
 
 		let hyper_server =
@@ -62,6 +66,11 @@ impl Server {
 					"Error starting server: {}",
 					error.description ())
 			) ?;
+
+		println! (
+			"Listening on {}:{}",
+			settings.server.listen_address,
+			settings.server.listen_port);
 
 		Ok (Server {
 			hyper_listening: hyper_listening,

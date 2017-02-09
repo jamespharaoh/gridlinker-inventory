@@ -8,11 +8,22 @@ use serde_yaml;
 #[ derive (Serialize, Deserialize) ]
 pub struct Settings {
 
+	#[ serde (rename = "general") ]
+	pub general: GeneralSettings,
+
 	#[ serde (rename = "upstream") ]
 	pub upstream: UpstreamSettings,
 
 	#[ serde (rename = "server") ]
 	pub server: ServerSettings,
+
+}
+
+#[ derive (Serialize, Deserialize) ]
+pub struct GeneralSettings {
+
+	#[ serde (rename = "pid-file") ]
+	pub pid_file: PathBuf,
 
 }
 
