@@ -13,7 +13,10 @@ use serde_json;
 use server::*;
 use upstream::*;
 
-pub const ROUTE_RAW_RESOURCES: & 'static RouteHandlerFn =
+pub const ROUTE_RAW_RESOURCES_REGEX: & 'static str =
+	"^/raw/resources$";
+
+pub const ROUTE_RAW_RESOURCES_HANDLER: & 'static RouteHandlerFn =
 	& route_raw_resources;
 
 fn route_raw_resources (

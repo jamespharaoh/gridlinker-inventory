@@ -65,7 +65,7 @@ impl HyperHandler for ServerHandler {
 
 }
 
-fn send_not_found (
+pub fn send_not_found (
 	mut response: HyperResponse,
 ) {
 
@@ -88,7 +88,7 @@ fn send_not_found (
 
 }
 
-fn send_error (
+pub fn send_error (
 	mut response: HyperResponse,
 ) {
 

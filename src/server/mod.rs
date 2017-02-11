@@ -1,10 +1,12 @@
 mod handler;
+mod raw_resource;
 mod raw_resources;
 mod routes;
 mod server;
 mod state;
 
 pub use self::handler::*;
+pub use self::raw_resource::*;
 pub use self::raw_resources::*;
 pub use self::routes::*;
 pub use self::server::*;

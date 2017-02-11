@@ -13,7 +13,10 @@ use serde_json;
 use server::*;
 use upstream::*;
 
-pub const ROUTE_RAW_RESOURCE: & 'static RouteHandlerFn =
+pub const ROUTE_RAW_RESOURCE_REGEX: & 'static str =
+	"^/raw/resource/(.+)$";
+
+pub const ROUTE_RAW_RESOURCE_HANDLER: & 'static RouteHandlerFn =
 	& route_raw_resource;
 
 fn route_raw_resource (
@@ -24,7 +27,10 @@ fn route_raw_resource (
 	mut response: HyperResponse,
 ) {
 
-	let resource_temp: Vec <Arc <NodeData>> = {
+	let resource_name =
+		captures.get (1).unwrap ().as_str ();
+
+	let resource: Option <Arc <NodeData>> = {
 
 		let data =
 			upstream.data ();
@@ -32,16 +38,24 @@ fn route_raw_resource (
 		let data =
 			data.lock ().unwrap ();
 
-		data.iter ().filter (
-			|& (ref key, ref _node)|
-			key.starts_with ("/resource/")
-			&& key.ends_with ("/data")
+		data.get (
+			& format! (
+				"/resource/{}/data",
+				resource_name),
 		).map (
-			|(ref _key, ref node)|
-			(* node).clone ()
-		).collect ()
+			|value| value.clone (),
+		)
 
 	};
+
+	if resource.is_none () {
+
+		return send_not_found (
+			response);
+
+	}
+
+	let resource = resource.unwrap ();
 
 	{
 
@@ -60,39 +74,17 @@ fn route_raw_resource (
 
 	write! (
 		response,
-		"{{\n  \"resources\": [",
+		"{{\n  \"resource\":",
 	).unwrap ();
 
-	for resource in resources_temp {
-
-		if first {
-
-			write! (
-				response,
-				"\n    ",
-			).unwrap ();
-
-			first = false;
-
-		} else {
-
-			write! (
-				response,
-				",\n    ",
-			).unwrap ();
-
-		}
-
-		serde_json::to_writer (
-			& mut response,
-			& resource.value (),
-		).unwrap ();
-
-	}
+	serde_json::to_writer (
+		& mut response,
+		& resource.value (),
+	).unwrap ();
 
 	write! (
 		response,
-		"\n  ]\n}}\n",
+		"\n}}\n",
 	).unwrap ();
 
 }

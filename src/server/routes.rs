@@ -32,15 +32,29 @@ pub type RouteHandlerFn =
 pub type RouteHandler =
 	& 'static RouteHandlerFn;
 
+macro_rules! route {
+
+	($regex: ident, $handler: ident) => {
+		(
+			Regex::new ($regex).unwrap (),
+			$handler,
+		)
+	}
+
+}
+
 lazy_static! {
 
 	pub static ref ROUTES: Vec <(Regex, RouteHandler)> = vec! [
-		(
-			Regex::new (
-				"^/raw/resources$"
-			).unwrap (),
-			ROUTE_RAW_RESOURCES,
-		),
+
+		route! (
+			ROUTE_RAW_RESOURCE_REGEX,
+			ROUTE_RAW_RESOURCE_HANDLER),
+
+		route! (
+			ROUTE_RAW_RESOURCES_REGEX,
+			ROUTE_RAW_RESOURCES_HANDLER),
+
 	];
 
 }
