@@ -13,6 +13,7 @@ extern crate serde_yaml;
 
 mod daemon;
 mod etcd;
+mod routes;
 mod settings;
 mod server;
 mod ssl;

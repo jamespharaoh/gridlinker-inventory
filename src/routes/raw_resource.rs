@@ -10,6 +10,7 @@ use regex::Captures as RegexCaptures;
 
 use serde_json;
 
+use routes::*;
 use server::*;
 use upstream::*;
 

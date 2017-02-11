@@ -10,16 +10,17 @@ use regex::Captures as RegexCaptures;
 
 use serde_json;
 
+use routes::*;
 use server::*;
 use upstream::*;
 
-pub const ROUTE_RAW_RESOURCES_REGEX: & 'static str =
-	"^/raw/resources$";
+pub const ROUTE_RAW_KEY_REGEX: & 'static str =
+	"^/raw/key(/.+)$";
 
-pub const ROUTE_RAW_RESOURCES_HANDLER: & 'static RouteHandlerFn =
-	& route_raw_resources;
+pub const ROUTE_RAW_KEY_HANDLER: & 'static RouteHandlerFn =
+	& route_raw_key;
 
-fn route_raw_resources (
+fn route_raw_key (
 	state: Arc <Mutex <ServerState>>,
 	upstream: Arc <Upstream>,
 	captures: RegexCaptures,
@@ -27,7 +28,10 @@ fn route_raw_resources (
 	mut response: HyperResponse,
 ) {
 
-	let resources_temp: Vec <Arc <NodeData>> = {
+	let key =
+		captures.get (1).unwrap ().as_str ();
+
+	let node: Option <Arc <NodeData>> = {
 
 		let data =
 			upstream.data ();
@@ -35,16 +39,22 @@ fn route_raw_resources (
 		let data =
 			data.lock ().unwrap ();
 
-		data.iter ().filter (
-			|& (ref key, ref _node)|
-			key.starts_with ("/resource/")
-			&& key.ends_with ("/data")
+		data.get (
+			key,
 		).map (
-			|(ref _key, ref node)|
-			(* node).clone ()
-		).collect ()
+			|value| value.clone (),
+		)
 
 	};
+
+	if node.is_none () {
+
+		return send_not_found (
+			response);
+
+	}
+
+	let node = node.unwrap ();
 
 	{
 
@@ -63,39 +73,17 @@ fn route_raw_resources (
 
 	write! (
 		response,
-		"{{\n  \"resources\": [",
+		"{{\n  \"value\":",
 	).unwrap ();
 
-	for resource in resources_temp {
-
-		if first {
-
-			write! (
-				response,
-				"\n    ",
-			).unwrap ();
-
-			first = false;
-
-		} else {
-
-			write! (
-				response,
-				",\n    ",
-			).unwrap ();
-
-		}
-
-		serde_json::to_writer (
-			& mut response,
-			& resource.value (),
-		).unwrap ();
-
-	}
+	serde_json::to_writer (
+		& mut response,
+		& node.value (),
+	).unwrap ();
 
 	write! (
 		response,
-		"\n  ]\n}}\n",
+		"\n}}\n",
 	).unwrap ();
 
 }

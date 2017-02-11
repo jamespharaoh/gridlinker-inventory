@@ -8,6 +8,7 @@ use hyper::server::Response as HyperResponse;
 use hyper::status::StatusCode as HyperStatusCode;
 use hyper::uri::RequestUri as HyperRequestUri;
 
+use routes::*;
 use server::*;
 use upstream::*;
 
