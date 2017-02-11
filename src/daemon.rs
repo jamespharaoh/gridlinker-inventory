@@ -146,6 +146,13 @@ unsafe fn daemon_child (
 				as * const libc::c_void,
 			1);
 
+	if write_result != 1 {
+
+		panic! (
+			"Failed writing to pipe in child");
+
+	}
+
 	0
 
 }
