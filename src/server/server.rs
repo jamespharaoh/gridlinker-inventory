@@ -30,6 +30,7 @@ impl Server {
 
 		let handler =
 			ServerHandler {
+				settings: settings.clone (),
 				state: state.clone (),
 				upstream: upstream,
 			};

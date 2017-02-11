@@ -59,6 +59,9 @@ pub struct ServerSettings {
 	#[ serde (rename = "listen-port") ]
 	pub listen_port: u16,
 
+	#[ serde (rename = "authorization-token") ]
+	pub authorization_token: String,
+
 }
 
 impl Settings {

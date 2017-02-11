@@ -10,9 +10,11 @@ use hyper::uri::RequestUri as HyperRequestUri;
 
 use routes::*;
 use server::*;
+use settings::*;
 use upstream::*;
 
 pub struct ServerHandler {
+	pub settings: Arc <Settings>,
 	pub state: Arc <Mutex <ServerState>>,
 	pub upstream: Arc <Upstream>,
 }
@@ -24,6 +26,26 @@ impl HyperHandler for ServerHandler {
 		request: HyperRequest,
 		mut response: HyperResponse,
 	) {
+
+		{
+
+			type BearerHeader =
+				header::Authorization <header::Bearer>;
+
+			if ! request.headers.get::<BearerHeader> (
+			).map (|bearer_header|
+
+				bearer_header.token
+					== self.settings.server.authorization_token,
+
+			).unwrap_or (false) {
+
+				return send_unauthenticated (
+					response);
+
+			}
+
+		}
 
 		let uri =
 			request.uri.clone ();
@@ -63,6 +85,29 @@ impl HyperHandler for ServerHandler {
 		}
 
 	}
+
+}
+
+pub fn send_unauthenticated (
+	mut response: HyperResponse,
+) {
+
+	* response.status_mut () =
+		HyperStatusCode::Unauthorized;
+
+	{
+
+		let headers =
+			response.headers_mut ();
+
+		headers.set (
+			header::ContentType::plaintext ());
+
+	}
+
+	response.send (
+		b"MUST AUTHENTICATE\n",
+	).unwrap ();
 
 }
 
