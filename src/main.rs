@@ -11,8 +11,12 @@ extern crate regex;
 extern crate serde_json;
 extern crate serde_yaml;
 
+#[ macro_use ]
+mod macros;
+
 mod daemon;
 mod etcd;
+mod inventory;
 mod routes;
 mod settings;
 mod server;

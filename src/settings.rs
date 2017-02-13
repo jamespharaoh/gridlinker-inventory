@@ -25,6 +25,9 @@ pub struct GeneralSettings {
 	#[ serde (rename = "pid-file") ]
 	pub pid_file: PathBuf,
 
+	#[ serde (rename = "project-data") ]
+	pub project_data: PathBuf,
+
 }
 
 #[ derive (Serialize, Deserialize) ]
