@@ -1,14 +1,5 @@
-#[ doc (hide) ]
-pub mod imports {
-	pub use ::inventory::inventory_macros::capitalise;
-	pub use ::linked_hash_map::LinkedHashMap;
-	pub use ::serde_yaml::from_value as from_yaml_value;
-	pub use ::serde_yaml::Value as YamlValue;
-	pub use ::serde_yaml::Value::Mapping as YamlMapping;
-	pub use ::serde_yaml::Value::Sequence as YamlSequence;
-	pub use ::serde_yaml::Value::String as YamlString;
-	pub use ::std::error::Error;
-}
+/// This module contains macros used to simplify the declaration of inventory
+/// types, and helper functions which are used by them.
 
 #[ allow (unused) ]
 pub fn capitalise (
@@ -39,6 +30,15 @@ macro_rules! inventory_parser {
 		$( $rest:tt ) *
 	) => {
 
+		use ::inventory::inventory_macros::capitalise;
+		use ::linked_hash_map::LinkedHashMap;
+		use ::serde_yaml::from_value as from_yaml_value;
+		use ::serde_yaml::Value as YamlValue;
+		use ::serde_yaml::Value::Mapping as YamlMapping;
+		use ::serde_yaml::Value::Sequence as YamlSequence;
+		use ::serde_yaml::Value::String as YamlString;
+		use ::std::error::Error;
+
 		inventory_parser_declarations! {
 			$( $rest ) *
 		}
@@ -49,7 +49,7 @@ macro_rules! inventory_parser {
 				$data.as_mapping ().ok_or_else (||
 					format! (
 						"{} must be a dictionary",
-						::inventory::inventory_macros::capitalise (
+						capitalise (
 							stringify! ($name)))
 				) ?;
 
@@ -59,13 +59,11 @@ macro_rules! inventory_parser {
 				).ok_or_else (||
 					format! (
 						"{} must contain an 'identity' section",
-						::inventory::inventory_macros::capitalise (
-							stringify! ($name)))
+						capitalise (stringify! ($name)))
 				) ?.as_mapping ().ok_or_else (||
 					format! (
 						"{} 'identity' must be a dictionary",
-						::inventory::inventory_macros::capitalise (
-							stringify! ($name)))
+						capitalise (stringify! ($name)))
 				) ?;
 
 			let identity_type =
@@ -74,13 +72,11 @@ macro_rules! inventory_parser {
 				).ok_or_else (||
 					format! (
 						"{} 'identity' must contain 'type'",
-						::inventory::inventory_macros::capitalise (
-							stringify! ($name)))
+						capitalise (stringify! ($name)))
 				) ?.as_str ().ok_or_else (||
 					format! (
 						"{} 'identity.type' must be a string",
-						::inventory::inventory_macros::capitalise (
-							stringify! ($name)))
+						capitalise (stringify! ($name)))
 				) ?;
 
 			if identity_type != stringify! ($name) {
@@ -88,8 +84,7 @@ macro_rules! inventory_parser {
 				return Err (
 					format! (
 						"{} 'identity.type' must be '{}'",
-						::inventory::inventory_macros::capitalise (
-							stringify! ($name)),
+						capitalise (stringify! ($name)),
 						stringify! ($name)));
 
 			}
@@ -200,8 +195,6 @@ macro_rules! inventory_parser_logic {
 
 		{
 
-			use ::inventory::inventory_macros::imports::*;
-
 			let section_mapping =
 				$mapping.get (
 					& YamlValue::String (
@@ -210,14 +203,12 @@ macro_rules! inventory_parser_logic {
 				).ok_or_else (||
 					format! (
 						"{} must contain section '{}'",
-						::inventory::inventory_macros::capitalise (
-							stringify! ($name)),
+						capitalise (stringify! ($name)),
 						stringify! ($section_name))
 				) ?.as_mapping ().ok_or_else (||
 					format! (
 						"{} section '{}' must be a dictionary",
-						::inventory::inventory_macros::capitalise (
-							stringify! ($name)),
+						capitalise (stringify! ($name)),
 						stringify! ($section_name))
 				) ?;
 
@@ -261,15 +252,13 @@ macro_rules! inventory_parser_section_logic {
 			).ok_or_else (||
 				format! (
 					"{} section '{}' must contain '{}'",
-					::inventory::inventory_macros::capitalise (
-						stringify! ($name)),
+					capitalise (stringify! ($name)),
 					stringify! ($section_name),
 					stringify! ($key)),
 			) ?.as_str ().ok_or_else (||
 				format! (
 					"{} value '{}.{}' must be a string",
-					::inventory::inventory_macros::capitalise (
-						stringify! ($name)),
+					capitalise (stringify! ($name)),
 					stringify! ($section_name),
 					stringify! ($key)),
 			) ?.to_owned ();
@@ -288,64 +277,6 @@ macro_rules! inventory_parser_section_logic {
 	(
 		section_name $section_name:ident ;
 		section_mapping $section_mapping:ident ;
-		opt $name:ident : String = $key:expr ;
-		$( $rest:tt ) *
-	) => {
-
-		$name =
-			$section_mapping.get (
-				& YamlValue::String (
-					$key.to_string (),
-				),
-			).map (|value|
-				value.as_str ().ok_or_else (||
-					format! (
-						"{} value '{}.{}' must be a string (if present)",
-						::inventory::inventory_macros::capitalise (
-							stringify! ($name)),
-						stringify! ($section_name),
-						stringify! ($key))
-				).map (|value|
-					Some (value),
-				)
-			).unwrap_or (
-				Ok (None),
-			) ?.map (|value|
-				value.to_owned (),
-			);
-
-		inventory_parser_section_logic! {
-
-			section_name $section_name;
-			section_mapping $section_mapping;
-
-			$( $rest ) *
-
-		}
-
-	};
-
-	(
-		section_name $section_name:ident ;
-		section_mapping $section_mapping:ident ;
-		vec $name:ident : String = $key:expr ;
-		$( $rest:tt ) *
-	) => {
-
-		$name =
-			Vec::new ();
-
-		inventory_parser_section_logic! {
-			section_name $section_name;
-			section_mapping $section_mapping;
-			$( $rest ) *
-		}
-
-	};
-
-	(
-		section_name $section_name:ident ;
-		section_mapping $section_mapping:ident ;
 		opt $name:ident : $value_type:ty = $key:expr ;
 		$( $rest:tt ) *
 	) => {
@@ -356,13 +287,12 @@ macro_rules! inventory_parser_section_logic {
 					$key.to_string (),
 				),
 			).map (|value|
-				::serde_yaml::from_value (
+				from_yaml_value (
 					value.clone (),
 				).map_err (|error|
 					format! (
 						"{} value '{}.{}' must be a {} (if present)",
-						::inventory::inventory_macros::capitalise (
-							stringify! ($name)),
+						capitalise (stringify! ($name)),
 						stringify! ($section_name),
 						stringify! ($key),
 						stringify! ($value_type),
@@ -411,8 +341,7 @@ macro_rules! inventory_parser_section_logic {
 				).map_err (|error|
 					format! (
 						"{} value '{}.{}' members must be {}: {}",
-						::inventory::inventory_macros::capitalise (
-							stringify! ($name)),
+						capitalise (stringify! ($name)),
 						stringify! ($section_name),
 						stringify! ($key),
 						stringify! ($value_type),

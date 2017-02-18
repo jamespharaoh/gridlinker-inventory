@@ -177,15 +177,13 @@ fn daemon (
 		"Loaded project: {}",
 		inventory.project ().project_name ());
 
-	for developer in inventory.project ().project_developers () {
+	println! (
+		"Namespaces: {}",
+		inventory.namespaces_list ().len ());
 
-		println! (
-			"Developer: {} <{}>",
-			developer.name (),
-			developer.email (),
-		);
-
-	}
+	println! (
+		"Classes: {}",
+		inventory.classes_list ().len ());
 
 	let upstream =
 		Arc::new (
