@@ -49,8 +49,7 @@ macro_rules! inventory_parser {
 				$data.as_mapping ().ok_or_else (||
 					format! (
 						"{} must be a dictionary",
-						capitalise (
-							stringify! ($name)))
+						capitalise (stringify! ($name)))
 				) ?;
 
 			let raw_identity =
@@ -254,13 +253,13 @@ macro_rules! inventory_parser_section_logic {
 					"{} section '{}' must contain '{}'",
 					capitalise (stringify! ($name)),
 					stringify! ($section_name),
-					stringify! ($key)),
+					$key),
 			) ?.as_str ().ok_or_else (||
 				format! (
 					"{} value '{}.{}' must be a string",
 					capitalise (stringify! ($name)),
 					stringify! ($section_name),
-					stringify! ($key)),
+					$key),
 			) ?.to_owned ();
 
 		inventory_parser_section_logic! {
@@ -294,7 +293,7 @@ macro_rules! inventory_parser_section_logic {
 						"{} value '{}.{}' must be a {} (if present)",
 						capitalise (stringify! ($name)),
 						stringify! ($section_name),
-						stringify! ($key),
+						$key,
 						stringify! ($value_type),
 					),
 				),
@@ -334,7 +333,7 @@ macro_rules! inventory_parser_section_logic {
 					"{} value '{}.{}' must be a list",
 					capitalise (stringify! ($name)),
 					stringify! ($section_name),
-					stringify! ($key)),
+					$key),
 			) ?.clone ().into_iter ().map (|value|
 				from_yaml_value::<$value_type> (
 					value,
@@ -343,7 +342,7 @@ macro_rules! inventory_parser_section_logic {
 						"{} value '{}.{}' members must be {}: {}",
 						capitalise (stringify! ($name)),
 						stringify! ($section_name),
-						stringify! ($key),
+						$key,
 						stringify! ($value_type),
 						error.description (),
 					),
@@ -382,7 +381,7 @@ macro_rules! inventory_parser_section_logic {
 					"{} value '{}.{}' must be a dictionary",
 					capitalise (stringify! ($name)),
 					stringify! ($section_name),
-					stringify! ($key)),
+					$key),
 			) ?.clone ().into_iter ().map (|(key, value)|
 				Ok ((
 					match key {
@@ -396,7 +395,7 @@ macro_rules! inventory_parser_section_logic {
 							"{} value '{}.{}' members must be {}: {}",
 							capitalise (stringify! ($name)),
 							stringify! ($section_name),
-							stringify! ($key),
+							$key,
 							stringify! ($value_type),
 							error.description (),
 						),
