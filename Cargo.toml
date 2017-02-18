@@ -10,6 +10,7 @@
 
 	hyper = "*"
 	lazy_static = "*"
+	linked-hash-map = "*"
 	libc = "*"
 	openssl = "*"
 	regex = "*"

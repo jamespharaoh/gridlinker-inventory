@@ -1,3 +1,16 @@
+#[ doc (hide) ]
+pub mod imports {
+	pub use ::inventory::inventory_macros::capitalise;
+	pub use ::linked_hash_map::LinkedHashMap;
+	pub use ::serde_yaml::from_value as from_yaml_value;
+	pub use ::serde_yaml::Value as YamlValue;
+	pub use ::serde_yaml::Value::Mapping as YamlMapping;
+	pub use ::serde_yaml::Value::Sequence as YamlSequence;
+	pub use ::serde_yaml::Value::String as YamlString;
+	pub use ::std::error::Error;
+}
+
+#[ allow (unused) ]
 pub fn capitalise (
 	string: & str,
 ) -> String {
@@ -53,7 +66,7 @@ macro_rules! inventory_parser {
 						"{} 'identity' must be a dictionary",
 						::inventory::inventory_macros::capitalise (
 							stringify! ($name)))
-				) ?; 
+				) ?;
 
 			let identity_type =
 				raw_identity.get (
@@ -119,11 +132,11 @@ macro_rules! inventory_parser_declarations {
 macro_rules! inventory_parser_section_declarations {
 
 	(
-		req str $name:ident $key:expr ;
+		req $name:ident : $value_type:ty = $key:expr ;
 		$( $rest:tt ) *
 	) => {
 
-		let $name: String;
+		let $name: $value_type;
 
 		inventory_parser_section_declarations! {
 			$( $rest ) *
@@ -132,11 +145,11 @@ macro_rules! inventory_parser_section_declarations {
 	};
 
 	(
-		opt str $name:ident $key:expr ;
+		opt $name:ident : $value_type:ty = $key:expr ;
 		$( $rest:tt ) *
 	) => {
 
-		let $name: Option <String>;
+		let $name: Option <$value_type>;
 
 		inventory_parser_section_declarations! {
 			$( $rest ) *
@@ -145,11 +158,24 @@ macro_rules! inventory_parser_section_declarations {
 	};
 
 	(
-		vec str $name:ident $key:expr ;
+		vec $name:ident : $value_type:ty = $key:expr ;
 		$( $rest:tt ) *
 	) => {
 
-		let $name: Vec <String>;
+		let $name: Vec <$value_type>;
+
+		inventory_parser_section_declarations! {
+			$( $rest ) *
+		}
+
+	};
+
+	(
+		map $name:ident : $value_type:ty = $key:expr ;
+		$( $rest:tt ) *
+	) => {
+
+		let $name: HashMap <String, $value_type>;
 
 		inventory_parser_section_declarations! {
 			$( $rest ) *
@@ -173,6 +199,8 @@ macro_rules! inventory_parser_logic {
 	) => {
 
 		{
+
+			use ::inventory::inventory_macros::imports::*;
 
 			let section_mapping =
 				$mapping.get (
@@ -221,7 +249,7 @@ macro_rules! inventory_parser_section_logic {
 	(
 		section_name $section_name:ident ;
 		section_mapping $section_mapping:ident ;
-		req str $name:ident $key:expr ;
+		req $name:ident : String = $key:expr ;
 		$( $rest:tt ) *
 	) => {
 
@@ -260,7 +288,7 @@ macro_rules! inventory_parser_section_logic {
 	(
 		section_name $section_name:ident ;
 		section_mapping $section_mapping:ident ;
-		opt str $name:ident $key:expr ;
+		opt $name:ident : String = $key:expr ;
 		$( $rest:tt ) *
 	) => {
 
@@ -300,7 +328,7 @@ macro_rules! inventory_parser_section_logic {
 	(
 		section_name $section_name:ident ;
 		section_mapping $section_mapping:ident ;
-		vec str $name:ident $key:expr ;
+		vec $name:ident : String = $key:expr ;
 		$( $rest:tt ) *
 	) => {
 
@@ -311,6 +339,149 @@ macro_rules! inventory_parser_section_logic {
 			section_name $section_name;
 			section_mapping $section_mapping;
 			$( $rest ) *
+		}
+
+	};
+
+	(
+		section_name $section_name:ident ;
+		section_mapping $section_mapping:ident ;
+		opt $name:ident : $value_type:ty = $key:expr ;
+		$( $rest:tt ) *
+	) => {
+
+		$name =
+			$section_mapping.get (
+				& YamlValue::String (
+					$key.to_string (),
+				),
+			).map (|value|
+				::serde_yaml::from_value (
+					value.clone (),
+				).map_err (|error|
+					format! (
+						"{} value '{}.{}' must be a {} (if present)",
+						::inventory::inventory_macros::capitalise (
+							stringify! ($name)),
+						stringify! ($section_name),
+						stringify! ($key),
+						stringify! ($value_type),
+					),
+				),
+			).unwrap_or (
+				Ok (None),
+			) ?;
+
+		inventory_parser_section_logic! {
+
+			section_name $section_name;
+			section_mapping $section_mapping;
+
+			$( $rest ) *
+
+		}
+
+	};
+
+	(
+		section_name $section_name:ident ;
+		section_mapping $section_mapping:ident ;
+		vec $name:ident : $value_type:ty = $key:expr ;
+		$( $rest:tt ) *
+	) => {
+
+		$name =
+			$section_mapping.get (
+				& YamlValue::String (
+					$key.to_string (),
+				),
+			).unwrap_or (
+				& YamlSequence (
+					Vec::new (),
+				),
+			).as_sequence ().ok_or_else (||
+				format! (
+					"{} value '{}.{}' must be a list",
+					capitalise (stringify! ($name)),
+					stringify! ($section_name),
+					stringify! ($key)),
+			) ?.clone ().into_iter ().map (|value|
+				from_yaml_value::<$value_type> (
+					value,
+				).map_err (|error|
+					format! (
+						"{} value '{}.{}' members must be {}: {}",
+						::inventory::inventory_macros::capitalise (
+							stringify! ($name)),
+						stringify! ($section_name),
+						stringify! ($key),
+						stringify! ($value_type),
+						error.description (),
+					),
+				),
+			).collect::<Result <Vec <$value_type>, String>> () ?;
+
+		inventory_parser_section_logic! {
+
+			section_name $section_name;
+			section_mapping $section_mapping;
+
+			$( $rest ) *
+
+		}
+
+	};
+
+	(
+		section_name $section_name:ident ;
+		section_mapping $section_mapping:ident ;
+		map $name:ident : $value_type:ty = $key:expr ;
+		$( $rest:tt ) *
+	) => {
+
+		$name =
+			$section_mapping.get (
+				& YamlValue::String (
+					$key.to_string (),
+				),
+			).unwrap_or (
+				& YamlMapping (
+					LinkedHashMap::new (),
+				),
+			).as_mapping ().ok_or_else (||
+				format! (
+					"{} value '{}.{}' must be a dictionary",
+					capitalise (stringify! ($name)),
+					stringify! ($section_name),
+					stringify! ($key)),
+			) ?.clone ().into_iter ().map (|(key, value)|
+				Ok ((
+					match key {
+						YamlString (value) => value.to_owned (),
+						_ => panic! (),
+					},
+					from_yaml_value::<$value_type> (
+						value,
+					).map_err (|error|
+						format! (
+							"{} value '{}.{}' members must be {}: {}",
+							capitalise (stringify! ($name)),
+							stringify! ($section_name),
+							stringify! ($key),
+							stringify! ($value_type),
+							error.description (),
+						),
+					) ?,
+				)),
+			).collect::<Result <HashMap <String, $value_type>, String>> () ?;
+
+		inventory_parser_section_logic! {
+
+			section_name $section_name;
+			section_mapping $section_mapping;
+
+			$( $rest ) *
+
 		}
 
 	};

@@ -6,6 +6,7 @@ extern crate serde_derive;
 
 extern crate hyper;
 extern crate libc;
+extern crate linked_hash_map;
 extern crate openssl;
 extern crate regex;
 extern crate serde_json;

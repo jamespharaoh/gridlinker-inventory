@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use libc;
 
+use inventory::*;
 use settings::*;
 use server::*;
 use upstream::*;
@@ -164,6 +165,27 @@ fn daemon (
 	write_pid_file (
 		settings.clone (),
 	) ?;
+
+	let inventory =
+		Arc::new (
+			Inventory::load (
+				settings.clone (),
+			) ?
+		);
+
+	println! (
+		"Loaded project: {}",
+		inventory.project ().project_name ());
+
+	for developer in inventory.project ().project_developers () {
+
+		println! (
+			"Developer: {} <{}>",
+			developer.name (),
+			developer.email (),
+		);
+
+	}
 
 	let upstream =
 		Arc::new (

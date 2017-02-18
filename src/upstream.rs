@@ -401,12 +401,11 @@ pub struct NodeData {
 
 impl NodeData {
 
-	pub fn key (& self) -> & str {
-		& self.key
-	}
-
-	pub fn value (& self) -> & str {
-		& self.value
+	property_accessors! {
+		ref key: & str;
+		ref value: & str;
+		copy created_index: u64;
+		copy modified_index: u64;
 	}
 
 }

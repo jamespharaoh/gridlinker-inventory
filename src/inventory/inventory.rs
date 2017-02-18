@@ -1,7 +1,11 @@
 use std::collections::HashMap;
 use std::error::Error;
+use std::fs::File;
 use std::path::Path;
 use std::sync::Arc;
+
+use serde_yaml;
+use serde_yaml::Value as YamlValue;
 
 use inventory::*;
 use settings::*;
@@ -9,6 +13,8 @@ use settings::*;
 pub struct Inventory {
 
 	settings: Arc <Settings>,
+
+	project: Arc <InventoryProject>,
 
 	classes_list: Vec <Arc <InventoryClass>>,
 	classes_map: HashMap <String, Arc <InventoryClass>>,
@@ -20,12 +26,33 @@ pub struct Inventory {
 
 impl Inventory {
 
+	property_accessors! {
+
+		ref project: & Arc <InventoryProject>;
+
+		ref classes_list: & Vec <Arc <InventoryClass>>;
+		ref classes_map: & HashMap <String, Arc <InventoryClass>>;
+
+		ref namespaces_list: & Vec <Arc <InventoryNamespace>>;
+		ref namespaces_map: & HashMap <String, Arc <InventoryNamespace>>;
+
+	}
+
 	pub fn load (
 		settings: Arc <Settings>,
 	) -> Result <Inventory, String> {
 
+		let project =
+			Self::load_file (
+				& InventoryProject::new,
+				& settings,
+				& settings.general.project_data.join ("project"),
+			) ?;
+
 		let classes_list =
-			Self::load_classes (
+			Self::load_files (
+				& InventoryClass::new,
+				"classes",
 				& settings,
 				& settings.general.project_data.join ("classes"),
 			) ?;
@@ -39,7 +66,9 @@ impl Inventory {
 			).collect ();
 
 		let namespaces_list =
-			Self::load_namespaces (
+			Self::load_files (
+				& InventoryNamespace::new,
+				"namespaces",
 				& settings,
 				& settings.general.project_data.join ("namespaces"),
 			) ?;
@@ -56,6 +85,8 @@ impl Inventory {
 
 			settings: settings,
 
+			project: project,
+
 			classes_list: classes_list,
 			classes_map: classes_map,
 
@@ -66,44 +97,52 @@ impl Inventory {
 
 	}
 
-	fn load_classes (
+	fn load_files <Type> (
+		loader: & Fn (YamlValue) -> Result <Type, String>,
+		name_plural: & str,
 		settings: & Settings,
-		classes_path: & Path,
-	) -> Result <Vec <Arc <InventoryClass>>, String> {
+		root_path: & Path,
+	) -> Result <Vec <Arc <Type>>, String> {
 
-		let mut classes_list: Vec <Arc <InventoryClass>> =
+		let mut items: Vec <Arc <Type>> =
 			Vec::new ();
 
-		Self::load_classes_impl (
+		Self::load_files_impl (
+			loader,
+			name_plural,
 			settings,
-			classes_path,
-			& mut classes_list,
+			root_path,
+			& mut items,
 		) ?;
 
-		Ok (classes_list)
+		Ok (items)
 
 	}
 
-	fn load_classes_impl (
+	fn load_files_impl <Type> (
+		loader: & Fn (YamlValue) -> Result <Type, String>,
+		name_plural: & str,
 		settings: & Settings,
-		classes_path: & Path,
-		classes_list: & mut Vec <Arc <InventoryClass>>,
+		path: & Path,
+		items: & mut Vec <Arc <Type>>,
 	) -> Result <(), String> {
 
 		for dir_entry_result
-		in classes_path.read_dir (
+		in path.read_dir (
 		).map_err (|error|
 			format! (
-				"Error reading classes directory {}: {}",
-				classes_path.to_string_lossy (),
+				"Error reading {} directory {}: {}",
+				name_plural,
+				path.to_string_lossy (),
 				error.description ())
 		) ? {
 
 			let dir_entry =
 				dir_entry_result.map_err (|error|
 					format! (
-						"Error reading classes directory {}: {}",
-						classes_path.to_string_lossy (),
+						"Error reading {} directory {}: {}",
+						name_plural,
+						path.to_string_lossy (),
 						error.description ())
 				) ?;
 
@@ -114,15 +153,17 @@ impl Inventory {
 				dir_entry_path.metadata (
 				).map_err (|error|
 					format! (
-						"Error reading classes directory {}: {}",
+						"Error reading {} directory {}: {}",
+						name_plural,
 						dir_entry_path.to_string_lossy (),
 						error.description ())
 				) ?;
 
 			if dir_entry_metadata.is_file () {
 
-				classes_list.push (
-					Self::load_class (
+				items.push (
+					Self::load_file (
+						loader,
 						settings,
 						& dir_entry_path,
 					) ?
@@ -130,10 +171,12 @@ impl Inventory {
 
 			} else if dir_entry_metadata.is_dir () {
 
-				Self::load_classes_impl (
+				Self::load_files_impl (
+					loader,
+					name_plural,
 					settings,
 					& dir_entry_path,
-					classes_list,
+					items,
 				) ?
 
 			} else {
@@ -152,107 +195,43 @@ impl Inventory {
 
 	}
 
-	fn load_class (
+	fn load_file <Type> (
+		loader: & Fn (YamlValue) -> Result <Type, String>,
 		settings: & Settings,
-		class_path: & Path,
-	) -> Result <Arc <InventoryClass>, String> {
+		path: & Path,
+	) -> Result <Arc <Type>, String> {
 
-		Err ("TODO".to_string ())
+		let file =
+			File::open (
+				path,
+			).map_err (|error|
+				format! (
+					"Error reading {}: {}",
+					path.to_string_lossy (),
+					error.description ())
+			) ?;
 
-	}
+		let raw_data =
+			serde_yaml::from_reader (
+				file,
+			).map_err (|error|
+				format! (
+					"Error parsing {}: {}",
+					path.to_string_lossy (),
+					error.description ())
+			) ?;
 
-	fn load_namespaces (
-		settings: & Settings,
-		namespaces_path: & Path,
-	) -> Result <Vec <Arc <InventoryNamespace>>, String> {
+		let item =
+			loader (
+				raw_data,
+			).map_err (|error|
+				format! (
+					"Error loading {}: {}",
+					path.to_string_lossy (),
+					error)
+			) ?;
 
-		let mut namespaces_list: Vec <Arc <InventoryNamespace>> =
-			Vec::new ();
-
-		Self::load_namespaces_impl (
-			settings,
-			namespaces_path,
-			& mut namespaces_list,
-		) ?;
-
-		Ok (namespaces_list)
-
-	}
-
-	fn load_namespaces_impl (
-		settings: & Settings,
-		namespaces_path: & Path,
-		namespaces_list: & mut Vec <Arc <InventoryNamespace>>,
-	) -> Result <(), String> {
-
-		for dir_entry_result
-		in namespaces_path.read_dir (
-		).map_err (|error|
-			format! (
-				"Error reading namespaces directory {}: {}",
-				namespaces_path.to_string_lossy (),
-				error.description ())
-		) ? {
-
-			let dir_entry =
-				dir_entry_result.map_err (|error|
-					format! (
-						"Error reading namespaces directory {}: {}",
-						namespaces_path.to_string_lossy (),
-						error.description ())
-				) ?;
-
-			let dir_entry_path =
-				dir_entry.path ();
-
-			let dir_entry_metadata =
-				dir_entry_path.metadata (
-				).map_err (|error|
-					format! (
-						"Error reading namespaces directory {}: {}",
-						dir_entry_path.to_string_lossy (),
-						error.description ())
-				) ?;
-
-			if dir_entry_metadata.is_file () {
-
-				namespaces_list.push (
-					Self::load_namespace (
-						settings,
-						& dir_entry_path,
-					) ?
-				);
-
-			} else if dir_entry_metadata.is_dir () {
-
-				Self::load_namespaces_impl (
-					settings,
-					& dir_entry_path,
-					namespaces_list,
-				) ?
-
-			} else {
-
-				return Err (
-					format! (
-						"Invalid file type {}: {:?}",
-						dir_entry.path ().to_string_lossy (),
-						dir_entry.file_type ()));
-
-			}
-
-		}
-
-		Ok (())
-
-	}
-
-	fn load_namespace (
-		settings: & Settings,
-		namespace_path: & Path,
-	) -> Result <Arc <InventoryNamespace>, String> {
-
-		Err ("TODO".to_owned ())
+		Ok (Arc::new (item))
 
 	}
 

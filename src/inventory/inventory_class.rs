@@ -26,13 +26,13 @@ impl InventoryClass {
 			data raw_data;
 
 			section identity {
-				req str identity_name "name";
+				req identity_name: String = "name";
 			}
 
 			section class {
-				req str class_namespace "namespace";
-				opt str class_parent_namespace "parent_namespace";
-				vec str class_groups "groups";
+				req class_namespace: String = "namespace";
+				opt class_parent_namespace: String = "parent_namespace";
+				vec class_groups: String = "groups";
 			}
 
 		}
